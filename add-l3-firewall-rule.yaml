@@ -1,0 +1,46 @@
+---
+- hosts: meraki
+  gather_facts: false
+  vars:
+    your_pod_number: "Pod X"
+    your_org: XXXX
+
+  tasks:
+    - name: Get Organization Networks
+      cisco.meraki.networks_info:
+        meraki_api_key: "{{ meraki_api_key}}"
+        organizationId: "{{ your_org }}"
+      register: result
+
+    - name: Filter Networks for Specific Pod
+      set_fact:
+        filtered_networks: "{{ result.meraki_response | selectattr('name', 'contains', your_pod_number) | list }}"
+    
+    - name: Get Specific Network From `filtered_networks`
+      set_fact: 
+        network: "{{ item.id }}"
+
+      loop: "{{ filtered_networks }}"
+      loop_control:
+        label: "{{ item.id }}"
+
+    - name: Set Inbound Firewall Rule
+      cisco.meraki.networks_appliance_firewall_inbound_firewall_rules:
+        meraki_api_key: "{{ meraki_api_key }}"
+        state: present
+        networkId: "{{ network }}"
+        rules:
+        - comment: Allow Cisco Access to Subnet With HTTP Servers
+          destCidr: Any
+          destPort: '443'
+          policy: allow
+          protocol: tcp
+          srcCidr: 2001:db8::/64
+          srcPort: Any
+          syslogEnabled: false
+
+      register: rule_add 
+
+    - name: Print Added Firewall Rule
+      ansible.builtin.debug:
+        msg: "{{ rule_add }}"
