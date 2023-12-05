@@ -1,0 +1,34 @@
+---
+- hosts: meraki
+  gather_facts: false
+  vars:
+    your_pod_number: Pod X
+    your_org: XXXX
+
+  tasks:
+
+    - name: Create New Network
+      cisco.meraki.networks:
+        meraki_suppress_logging: true
+        meraki_api_key: "{{ meraki_api_key }}"
+        name: "{{ your_pod_number }}"
+        state: present
+        notes: Network for {{ your_pod_number }}
+        organizationId: "{{ your_org }}"
+        productTypes:
+        - appliance
+        tags:
+        - DevNet
+        - Cisco_Live_Melbourne
+        timeZone: Australia/Melbourne
+      register: network
+
+    - name: Show Created Network ID
+      ansible.builtin.debug:
+        msg: "The created Network ID is: {{ network.meraki_response.id }}"
+
+    - name: Add vMX to New Network
+      cisco.meraki.networks_devices_claim_vmx:
+        meraki_api_key: "{{ meraki_api_key }}"
+        networkId: "{{ network.meraki_response.id }}"
+        size: small
